@@ -18,6 +18,7 @@ DATA_DIR = os.path.join(ROOT_DIR, 'aug')
 
 BATCH_SIZE = Config.image_per_gpu * Config.gpu_count
 
+
 def data_prepare():
     x_train, y_train_det, y_train_cls = load_data(dataset=DATA_DIR, type='train')
     x_val, y_val_det, y_val_cls = load_data(DATA_DIR, type='validation')
@@ -80,7 +81,6 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
     valset = torch.Tensor(valset)
 
     if gpu:
-        model = model.cuda()
         trainset = trainset.cuda()
         valset = valset.cuda()
 
@@ -179,6 +179,18 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
     # writer.export_scalars_to_json('./loss.json')
     writer.close()
 
+
+def parallel_model(model):
+    if torch.cuda.device_count() > 1:
+        print("use", torch.cuda.device_count(), "gpus")
+        model = nn.DataParallel(model).cuda()
+    else:
+        print('training model on one gpu.')
+        model = model.cuda()
+    return model
+
+
 if __name__ == '__main__':
     net = Attention_Net_Global()
+    net = parallel_model(net)
     train(net, weight_det=[0.1, 2], weight_cls=[0.1, 4, 3, 6, 10], data_dir='./aug', target_size=64)

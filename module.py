@@ -12,43 +12,6 @@ def _isArrayLike(obj):
     return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
 
 
-class PiCANet_L(nn.Module):
-    def __init__(self, in_channel):
-        super(PiCANet_L, self).__init__()
-        self.conv1 = nn.Conv2d(in_channel, 128, kernel_size=7, dilation=2, padding=6)
-        self.conv2 = nn.Conv2d(128, 49, kernel_size=1)
-
-    def forward(self, *input):
-        x = input[0]
-        size = x.size()
-        kernel = self.conv1(x)
-        kernel = self.conv2(kernel)
-        kernel = F.softmax(kernel, 1)
-        kernel = torch.reshape(kernel, (size[0] * size[2] * size[3], 1, 1, 7, 7))
-        # fmap = []
-        # x = torch.unsqueeze(x, 0)
-        x = F.pad(x, (6, 6, 6, 6))
-        # print(torch.cuda.memory_allocated() / 1024 / 1024)
-        patch = x.unfold(2, 13, 1).unfold(3, 13, 1).contiguous().view(1, -1, size[1], 13, 13)
-        # print(torch.cuda.memory_allocated() / 1024 / 1024)
-        x = F.conv3d(input=patch, weight=kernel, bias=None, stride=1, padding=0, dilation=(1, 2, 2),
-                     groups=size[0] * size[2] * size[3])
-        x = x.view(size[0], size[1], size[2], size[3])
-        """
-        for i in range(size[2]):
-            for j in range(size[3]):
-                print(torch.cuda.memory_allocated() / 1024 / 1024)
-                pix = F.conv3d(input=F.pad(x, (6 - j, 7 + j - size[3], 6 - i, 7 + i - size[2])),
-                               weight=kernel[:, :, :, :, :, i, j],
-                               dilation=(1, 2, 2), groups=size[0])
-                print(torch.cuda.memory_allocated() / 1024 / 1024)
-                fmap.append(pix)
-        x = torch.cat(fmap, 3)
-        x = torch.reshape(x, (size[0], size[1], size[2], size[3]))
-        """
-        return x
-
-
 class Renet(nn.Module):
     """
     This Renet is implemented according to paper
@@ -186,7 +149,6 @@ class AttentionLocal(nn.Module):
         self._conv = _AttentionLocal_Conv(inchannel, conv1_filter=7, conv1_dilation=2,
                                           conv1_outchannel=256,
                                           conv_last_outchannel=local_feature**2)
-
 
     def forward(self, *input):
         x = input[0]
