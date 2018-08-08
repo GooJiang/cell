@@ -5,26 +5,62 @@ import torchvision
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-import time
+import time, os
 import dataset
 from config import Config
+from dataset import load_data
 
+ROOT_DIR = os.getcwd()
+if ROOT_DIR.endswith('src'):
+    ROOT_DIR = os.path.dirname(ROOT_DIR)
+
+DATA_DIR = os.path.join(ROOT_DIR, 'aug')
 
 BATCH_SIZE = Config.image_per_gpu * Config.gpu_count
+
+def data_prepare():
+    x_train, y_train_det, y_train_cls = load_data(dataset=DATA_DIR, type='train')
+    x_val, y_val_det, y_val_cls = load_data(DATA_DIR, type='validation')
+
+    train_count = len(x_train)
+    val_count = len(x_val)
+    val_steps = int(val_count / BATCH_SIZE)
+    print('training imgs:', train_count)
+    print('val imgs:', val_count)
+
+    trainset = np.concatenate([x_train, y_train_det, y_train_cls], axis=1)
+    trainset = torch.Tensor(trainset)
+
+    valset = np.concatenate([x_val, y_val_det, y_val_cls], axis=1)
+    valset = torch.Tensor(valset)
+
+    trainset = trainset.cuda()
+    valset = valset.cuda()
+
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(valset, batch_size=BATCH_SIZE, shuffle=True)
+
+    return train_loader, val_loader
+
+
+def tune_weights(weight_det=None, weight_cls=None):
+    if weight_det is None:
+        weight_det = torch.Tensor([1, 1])
+    else:
+        weight_det = torch.Tensor(weight_det)
+    if weight_cls is None:
+        weight_cls = torch.Tensor([1, 1, 1, 1, 1])
+    else:
+        weight_cls = torch.Tensor(weight_cls)
+    weight_det = weight_det.cuda()
+    weight_cls = weight_cls.cuda()
+    return weight_det, weight_cls
 
 
 def train(model, weight_det=None, weight_cls=None,data_dir='',
           preprocess=True, gpu=True, num_epochs=Config.epoch, target_size=256):
-    if weight_det == None:
-        weight_det = torch.Tensor([1, 1])
-    else:
-        weight_det = torch.Tensor(weight_det)
 
-    if weight_cls == None:
-        weight_cls = torch.Tensor([1, 1, 1, 1, 1])
-    else:
-        weight_cls = torch.Tensor(weight_cls)
-
+    weight_det, weight_cls = tune_weights(weight_det, weight_cls)
     writer = SummaryWriter()
 
     data = dataset.CRC_joint(data_dir, target_size=target_size)
@@ -47,8 +83,6 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
         model = model.cuda()
         trainset = trainset.cuda()
         valset = valset.cuda()
-        weight_det = weight_det.cuda()
-        weight_cls = weight_cls.cuda()
 
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True)
     val_loader = torch.utils.data.DataLoader(valset, batch_size=BATCH_SIZE, shuffle=True)

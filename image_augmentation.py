@@ -170,69 +170,16 @@ def batch_image_process(ori_set, target_set, process, stage=None, num_op=None):
                            ]
             for order, img in enumerate(rotate_list):
                 check_cv2_imwrite(list_img_create[order], img)
-        elif process == 'shear':
-            aug_lrimage, aug_lrdetmask, aug_lrclsmask = img_aug(image, det_mask, cls_mask, 'shear')
-            aug_upimage, aug_updetmask, aug_upclsmask = img_aug(image, det_mask, cls_mask, 'shear')
-            list_file_create = [os.path.join(target_set, str(file) + '_s1'),
-                                os.path.join(target_set, str(file) + '_s2')]
+        elif process == 'shear' or process == 'channel' or process == 'random' or process=='zoom':
+            aug_image, aug_detmask, aug_clsmask = img_aug(image, det_mask, cls_mask, process)
+            list_file_create = [os.path.join(target_set, str(file) + '_' + process + str(stage))]
             check_directory(list_file_create)
-            list_img_create = [os.path.join(target_set, str(file) + '_s1', str(file) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_s2', str(file) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_s1', str(file) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_s2', str(file) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_s1', str(file) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_s2', str(file) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_s1', str(file) + '_original.bmp'),
-                               os.path.join(target_set, str(file) + '_s2', str(file) + '_original.bmp')]
-
-            shear_list = [aug_lrimage, aug_upimage,
-                         aug_lrdetmask, aug_updetmask,
-                         aug_lrclsmask, aug_upclsmask,
-                         aug_lrimage, aug_upimage]
-            for order, img in enumerate(shear_list):
-                check_cv2_imwrite(list_img_create[order], img)
-        elif 'channel' in process:
-            aug_lrimage, aug_lrdetmask, aug_lrclsmask = img_aug(image, det_mask, cls_mask, 'channel_shift')
-            list_file_create = [os.path.join(target_set, str(file) + '_c' + str(stage))]
-            check_directory(list_file_create)
-            list_img_create = [os.path.join(target_set, str(file) + '_c' + str(stage), str(file) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_c' + str(stage), str(file) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_c' + str(stage), str(file) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_c' + str(stage), str(file) + '_original.bmp')]
-
-            channel_list = [aug_lrimage, aug_lrdetmask, aug_lrclsmask, aug_lrimage]
-            for order, img in enumerate(channel_list):
-                check_cv2_imwrite(list_img_create[order], img)
-        elif process == 'random':
-            aug_lrimage, aug_lrdetmask, aug_lrclsmask = img_aug(image, det_mask, cls_mask, 'random')
-
-            list_file_create = [os.path.join(target_set, str(file) + '_ran' + str(stage))
-                                ]
-            check_directory(list_file_create)
-            list_img_create = [os.path.join(target_set, str(file) + '_ran' + str(stage), str(file) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_ran' + str(stage), str(file) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_ran' + str(stage), str(file) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_ran', str(file) + '_original.bmp')
-                               ]
-
-            channel_list = [aug_lrimage, aug_lrdetmask, aug_lrclsmask, aug_lrimage]
-            for order, img in enumerate(channel_list):
-                check_cv2_imwrite(list_img_create[order], img)
-        elif process == 'zoom':
-            aug_lrimage, aug_lrdetmask, aug_lrclsmask = img_aug(image, det_mask, cls_mask, 'zoom')
-
-            list_file_create = [os.path.join(target_set, str(file) + '_zoom' + str(stage))
-                                ]
-            check_directory(list_file_create)
-            list_img_create = [os.path.join(target_set, str(file) + '_zoom' + str(stage), str(file) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_zoom' + str(stage), str(file) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_zoom' + str(stage),
-                                            str(file) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_zoom', str(file) + '_original.bmp')
-                               ]
-
-            zoom_list = [aug_lrimage, aug_lrdetmask, aug_lrclsmask, aug_lrimage]
-            for order, img in enumerate(zoom_list):
+            list_img_create = [os.path.join(target_set, str(file) + '_' + process + str(stage) + '.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_detection.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_classification.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_original.bmp')]
+            image_list = [aug_image, aug_detmask, aug_clsmask, aug_image]
+            for order, img in enumerate(image_list):
                 check_cv2_imwrite(list_img_create[order], img)
         else:
             raise ValueError('augmentation type wrong, check documents.')
@@ -326,7 +273,7 @@ def img_aug(img, det_mask, cls_mask, aug_type):
             aug = _det_aug(image, det_mask, cls_mask, shear)
         elif aug_type == 'zoom':
             aug = _det_aug(image, det_mask, cls_mask, zoom)
-        elif aug_type == 'channel_shift':
+        elif aug_type == 'channel':
             aug = _det_aug(image, det_mask, cls_mask, channel_shift)
         elif aug_type == 'random':
             aug = _det_aug(image, det_mask, cls_mask, random)
@@ -418,17 +365,27 @@ def copy_oriimg_to_new(oriset, targetset):
     :param targetset:
     :return:
     """
-    from shutil import copytree
+    from shutil import copytree, copyfile
     for file in os.listdir(oriset):
         old_path = os.path.join(oriset, file)
+        # rename image.bmp to image_original.bmp for
+        # the convenience of future recognation.
+        for img_file in os.listdir(old_path):
+            if img_file == str(file) + '.bmp':
+                new_img_path = os.path.join(old_path, str(file) + '_original.bmp')
+                copyfile(os.path.join(old_path, img_file), new_img_path)
+        # move old file into new dataset files.
         new_path = os.path.join(targetset, file)
         copytree(old_path, new_path)
 
 
-def batch_aug(oriset, targetset, rand_num=None, channel_num=None, zoom_num=None):
+def batch_aug(oriset, targetset, rand_num=None,
+              channel_num=None, zoom_num=None,
+              shear_num=None):
     batch_image_process(oriset, targetset, process='flip')
     batch_image_process(oriset, targetset, process='rotate')
-    batch_image_process(oriset, targetset, process='shear')
+    for l in range(shear_num):
+        batch_image_process(oriset, targetset, process='shear', stage=l)
     for x in range(zoom_num):
         batch_image_process(oriset, targetset, process='zoom', stage=x)
     for i in range(rand_num):
@@ -440,16 +397,19 @@ def batch_aug(oriset, targetset, rand_num=None, channel_num=None, zoom_num=None)
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--crop", default=False, type=bool)
+    parser.add_argument("--crop", default=True, type=bool)
     args = parser.parse_args()
     ifcrop = args.crop
     rand_num = 5
     channel_num = 2
     zoom_num = 2
-    batch_aug(TRAIN_OLD_DATA_DIR, TRAIN_TARGET_DATA_DIR, rand_num=rand_num,
-              channel_num=channel_num, zoom_num=zoom_num)
+    shear_num = 2
+    batch_aug(TRAIN_OLD_DATA_DIR, TRAIN_TARGET_DATA_DIR, rand_num=rand_num, channel_num=channel_num,
+              zoom_num=zoom_num,
+              shear_num=shear_num)
     batch_aug(VALID_OLD_DATA_DIR, VALID_TARGET_DATA_DIR, rand_num=rand_num,
-              channel_num=channel_num, zoom_num=zoom_num)
+              channel_num=channel_num, zoom_num=zoom_num,
+              shear_num=shear_num)
 
     copy_oriimg_to_new(TRAIN_OLD_DATA_DIR, TRAIN_TARGET_DATA_DIR)
     copy_oriimg_to_new(VALID_OLD_DATA_DIR, VALID_TARGET_DATA_DIR)

@@ -4,6 +4,71 @@ import os
 import glob
 import matplotlib.pyplot as plt
 
+
+ROOT_DIR = os.getcwd()
+if ROOT_DIR.endswith('src'):
+    ROOT_DIR = os.path.dirname(ROOT_DIR)
+
+DATA_DIR = os.path.join(ROOT_DIR, 'aug')
+
+def load_data(dataset, type, reshape_size=None, det=True, cls=True, preprocss_num=128.):
+    """
+    Load dataset from files
+    :param type: either train, test or validation.
+    :param reshape_size: reshape to (512, 512) if cropping images are using.
+    :param det: True if detection masks needed.
+    :param cls: True if classification masks needed.
+    :param preprocss_num: number to subtract and divide in normalization step.
+    """
+    def _image_normalization(image):
+        """
+        preprocessing on image.
+        """
+        image = image - preprocss_num
+        image = image / preprocss_num
+        return image
+
+    def _torch_image_transpose(images):
+        """
+        change image to channel first.
+        """
+        images = np.array(images)
+        images = np.transpose(images, (0, 3, 1, 2))
+        return images
+
+    path = os.path.join(dataset, type)
+    imgs, det_masks, cls_masks = [], [], []
+    for i, file in enumerate(os.listdir(path)):
+        for j, img_file in enumerate(os.listdir(os.path.join(path, file))):
+            if 'original.bmp' in img_file:
+                img_path = os.path.join(path, file, img_file)
+                img = misc.imread(img_path)
+                if reshape_size is not None:
+                    img = misc.imresize(img, reshape_size, interp='nearest')
+                img = _image_normalization(img)
+                imgs.append(img)
+
+            elif 'detection.bmp' in img_file and det == True:
+                det_mask_path = os.path.join(path, file, img_file)
+                det_mask = misc.imread(det_mask_path, mode='L')
+                if reshape_size is not None:
+                    det_mask = misc.imresize(det_mask, reshape_size, interp='nearest')
+                det_masks.append(det_mask)
+
+            elif 'classification.bmp' in img_file and cls == True:
+                if cls == True:
+                    cls_mask_path = os.path.join(path, file, img_file)
+                    cls_mask = misc.imread(cls_mask_path, mode='L')
+                    if reshape_size != None:
+                        cls_mask = misc.imresize(cls_mask, reshape_size, interp='nearest')
+                    cls_masks.append(cls_mask)
+
+            imgs = _torch_image_transpose(imgs)
+            det_masks = _torch_image_transpose(det_masks)
+            cls_masks = _torch_image_transpose(cls_masks)
+    return imgs, det_masks, cls_masks
+
+
 class CRC_joint:
     def __init__(self,imgdir,target_size=256):
         self.imgdir = imgdir
