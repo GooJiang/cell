@@ -174,10 +174,10 @@ def batch_image_process(ori_set, target_set, process, stage=None, num_op=None):
             aug_image, aug_detmask, aug_clsmask = img_aug(image, det_mask, cls_mask, process)
             list_file_create = [os.path.join(target_set, str(file) + '_' + process + str(stage))]
             check_directory(list_file_create)
-            list_img_create = [os.path.join(target_set, str(file) + '_' + process + str(stage) + '.bmp'),
-                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_detection.bmp'),
-                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_classification.bmp'),
-                               os.path.join(target_set, str(file) + '_' + process + str(stage) + '_original.bmp')]
+            list_img_create = [os.path.join(target_set, str(file) + '_' + process + str(stage), str(file) + '_' + process + str(stage) + '.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage), str(file) + '_' + process + str(stage) + '_detection.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage), str(file) + '_' + process + str(stage) + '_classification.bmp'),
+                               os.path.join(target_set, str(file) + '_' + process + str(stage), str(file) + '_' + process + str(stage) + '_original.bmp')]
             image_list = [aug_image, aug_detmask, aug_clsmask, aug_image]
             for order, img in enumerate(image_list):
                 check_cv2_imwrite(list_img_create[order], img)
@@ -407,9 +407,7 @@ if __name__ == '__main__':
     batch_aug(TRAIN_OLD_DATA_DIR, TRAIN_TARGET_DATA_DIR, rand_num=rand_num, channel_num=channel_num,
               zoom_num=zoom_num,
               shear_num=shear_num)
-    batch_aug(VALID_OLD_DATA_DIR, VALID_TARGET_DATA_DIR, rand_num=rand_num,
-              channel_num=channel_num, zoom_num=zoom_num,
-              shear_num=shear_num)
+    #batch_aug(VALID_OLD_DATA_DIR, VALID_TARGET_DATA_DIR, rand_num=rand_num, channel_num=channel_num, zoom_num=zoom_num, shear_num=shear_num)
 
     copy_oriimg_to_new(TRAIN_OLD_DATA_DIR, TRAIN_TARGET_DATA_DIR)
     copy_oriimg_to_new(VALID_OLD_DATA_DIR, VALID_TARGET_DATA_DIR)

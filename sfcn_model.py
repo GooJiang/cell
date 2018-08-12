@@ -16,12 +16,12 @@ class identity_block(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 3, padding=1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv2d(out_ch, out_ch, 3, padding=1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         residual = x
@@ -38,13 +38,13 @@ class strided_block(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 3, stride=2, padding=1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Conv2d(out_ch, out_ch, 3 ,padding=1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.downsample = nn.Conv2d(in_ch, out_ch, 3, stride=2, padding=1)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         residual = self.downsample(x)
@@ -59,7 +59,7 @@ class conv_1x1(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_ch, out_ch, 1),
             nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
 
     def forward(self, x):
@@ -95,7 +95,7 @@ class Net(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.conv2 = conv_1x1(64, 2)
         self.conv3 = conv_1x1(128, 2)
@@ -103,7 +103,7 @@ class Net(nn.Module):
         self.deconv1 = nn.Sequential(
             nn.ConvTranspose2d(2, 2, 2, stride=2),
             nn.BatchNorm2d(2),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv2 = nn.Sequential(
             nn.ConvTranspose2d(2, 2, 2, stride=2),
@@ -112,7 +112,7 @@ class Net(nn.Module):
         self.deconv3 = nn.Sequential(
             nn.ConvTranspose2d(5, 5, 2, stride=2),
             nn.BatchNorm2d(5),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv4 = nn.Sequential(
             nn.ConvTranspose2d(5, 5, 2, stride=2),
@@ -124,7 +124,8 @@ class Net(nn.Module):
         self.Module4 = Res_Module(128, 128, downsample=False)
         self.out = nn.LogSoftmax(dim=1)
 
-    def forward(self, x):
+    def forward(self, *input):
+        x = input[0]
         x = self.conv1(x)
         x = self.Module1(x)
         x = self.Module2(x)
@@ -149,7 +150,7 @@ class Attention_Net(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.conv2 = conv_1x1(64, 32)
         self.conv3 = conv_1x1(128, 32)
@@ -157,7 +158,7 @@ class Attention_Net(nn.Module):
         self.deconv1 = nn.Sequential(
             nn.ConvTranspose2d(32, 32, 2, stride=2),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv2 = nn.Sequential(
             nn.ConvTranspose2d(32, 2, 2, stride=2),
@@ -166,7 +167,7 @@ class Attention_Net(nn.Module):
         self.deconv3 = nn.Sequential(
             nn.ConvTranspose2d(32, 32, 2, stride=2),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv4 = nn.Sequential(
             nn.ConvTranspose2d(32, 5, 2, stride=2),
@@ -215,7 +216,7 @@ class Attention_Net_Global(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv2d(3, 32, 3, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.conv2 = conv_1x1(64, 32)
         self.conv3 = conv_1x1(128, 32)
@@ -223,7 +224,7 @@ class Attention_Net_Global(nn.Module):
         self.deconv1 = nn.Sequential(
             nn.ConvTranspose2d(32, 32, 2, stride=2),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv2 = nn.Sequential(
             nn.ConvTranspose2d(32, 2, 2, stride=2),
@@ -232,7 +233,7 @@ class Attention_Net_Global(nn.Module):
         self.deconv3 = nn.Sequential(
             nn.ConvTranspose2d(32, 32, 2, stride=2),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU()
         )
         self.deconv4 = nn.Sequential(
             nn.ConvTranspose2d(32, 5, 2, stride=2),

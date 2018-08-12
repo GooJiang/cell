@@ -3,13 +3,75 @@ import scipy.misc as misc
 import os
 import glob
 import matplotlib.pyplot as plt
-
+import torch
+import scipy.io as sio
 
 ROOT_DIR = os.getcwd()
 if ROOT_DIR.endswith('src'):
     ROOT_DIR = os.path.dirname(ROOT_DIR)
 
 DATA_DIR = os.path.join(ROOT_DIR, 'aug')
+
+
+def validation_metric(dataset, model, reshape_size = (256, 256), preprocss_num=128.):
+    path= os.path.join(dataset, 'validation')
+    tp_num = [0, 0]
+    gt_num = [0, 0]
+    pred_num = [0, 0]
+    precision = [0, 0]
+    recall = [0, 0]
+    f1_score = [0, 0]
+    cell_type_group = ['epithelial', 'fibroblast', 'inflammatory', 'others']
+    gt_type = ['Detection', 'Classification']
+    for i, file in enumerate(os.listdir(path)):
+        for j, img_file in enumerate(os.listdir(os.path.join(path, file))):
+            curr_file = os.path.join(path, file, img_file)
+            if 'original.bmp' in img_file:
+                img = misc.imread(curr_file)
+                if reshape_size is not None:
+                    img = misc.imresize(img, reshape_size, interp='nearest')
+                img = _image_normalization(img, preprocss_num)
+                img = img.reshape((1, img.shape[0], img.shape[1], img.shape[2]))
+                img = _torch_image_transpose(img)
+                img = torch.Tensor(img).cuda()
+
+
+                img_result = model(img)
+            if 'detection_mat' in img_file:
+                det_mat = sio.loadmat(curr_file)['detection']
+            if 'epithelial.mat' in img_file:
+                epi_mat = sio.loadmat(curr_file)['detection']
+            if 'inflammatory.mat' in img_file:
+                inf_mat = sio.loadmat(curr_file)['detection']
+            if 'others.mat' in img_file:
+                other_mat = sio.loadmat(curr_file)['detection']
+            if 'fibroblast.mat' in img_file:
+                fib_mat = sio.loadmat(curr_file)['detection']
+
+        result = img_result.cpu().detach().numpy()
+        result = np.transpose(result, (0, 2, 3, 1))[0]
+        result = np.exp(result)
+
+
+
+def _image_normalization(image, preprocss_num):
+    """
+    preprocessing on image.
+    """
+    image = image - preprocss_num
+    image = image / preprocss_num
+    return image
+
+
+def _torch_image_transpose(images, type='image'):
+    """
+    change image to channel first.
+    """
+    images = np.array(images)
+    images = np.transpose(images, (0, 3, 1, 2))
+
+    return images
+
 
 def load_data(dataset, type, reshape_size=None, det=True, cls=True, preprocss_num=128.):
     """
@@ -20,22 +82,6 @@ def load_data(dataset, type, reshape_size=None, det=True, cls=True, preprocss_nu
     :param cls: True if classification masks needed.
     :param preprocss_num: number to subtract and divide in normalization step.
     """
-    def _image_normalization(image):
-        """
-        preprocessing on image.
-        """
-        image = image - preprocss_num
-        image = image / preprocss_num
-        return image
-
-    def _torch_image_transpose(images):
-        """
-        change image to channel first.
-        """
-        images = np.array(images)
-        images = np.transpose(images, (0, 3, 1, 2))
-        return images
-
     path = os.path.join(dataset, type)
     imgs, det_masks, cls_masks = [], [], []
     for i, file in enumerate(os.listdir(path)):
@@ -45,27 +91,28 @@ def load_data(dataset, type, reshape_size=None, det=True, cls=True, preprocss_nu
                 img = misc.imread(img_path)
                 if reshape_size is not None:
                     img = misc.imresize(img, reshape_size, interp='nearest')
-                img = _image_normalization(img)
+                img = _image_normalization(img, preprocss_num)
                 imgs.append(img)
-
-            elif 'detection.bmp' in img_file and det == True:
+            if 'detection.bmp' in img_file and det is True and 'verifiy' not in img_file:
                 det_mask_path = os.path.join(path, file, img_file)
                 det_mask = misc.imread(det_mask_path, mode='L')
                 if reshape_size is not None:
                     det_mask = misc.imresize(det_mask, reshape_size, interp='nearest')
+                det_mask = det_mask.reshape(det_mask.shape[0], det_mask.shape[1], 1)
                 det_masks.append(det_mask)
 
-            elif 'classification.bmp' in img_file and cls == True:
-                if cls == True:
-                    cls_mask_path = os.path.join(path, file, img_file)
-                    cls_mask = misc.imread(cls_mask_path, mode='L')
-                    if reshape_size != None:
-                        cls_mask = misc.imresize(cls_mask, reshape_size, interp='nearest')
-                    cls_masks.append(cls_mask)
+            if 'classification.bmp' in img_file and cls is True and 'verifiy' not in img_file:
+                cls_mask_path = os.path.join(path, file, img_file)
+                cls_mask = misc.imread(cls_mask_path, mode='L')
+                if reshape_size != None:
+                    cls_mask = misc.imresize(cls_mask, reshape_size, interp='nearest')
+                cls_mask = cls_mask.reshape(cls_mask.shape[0], cls_mask.shape[1], 1)
+                cls_masks.append(cls_mask)
 
-            imgs = _torch_image_transpose(imgs)
-            det_masks = _torch_image_transpose(det_masks)
-            cls_masks = _torch_image_transpose(cls_masks)
+    print(len(imgs), len(det_masks), len(cls_masks))
+    imgs = _torch_image_transpose(imgs)
+    det_masks = _torch_image_transpose(det_masks)
+    cls_masks = _torch_image_transpose(cls_masks)
     return imgs, det_masks, cls_masks
 
 

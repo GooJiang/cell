@@ -15,33 +15,28 @@ if ROOT_DIR.endswith('src'):
     ROOT_DIR = os.path.dirname(ROOT_DIR)
 
 DATA_DIR = os.path.join(ROOT_DIR, 'aug')
-
+CKPT_DIR = os.path.join(ROOT_DIR, 'ckpt')
 BATCH_SIZE = Config.image_per_gpu * Config.gpu_count
 
 
-def data_prepare():
-    x_train, y_train_det, y_train_cls = load_data(dataset=DATA_DIR, type='train')
-    x_val, y_val_det, y_val_cls = load_data(DATA_DIR, type='validation')
+def data_prepare(data_dir, batch_size):
+    x_train, y_train_det, y_train_cls = load_data(dataset=data_dir, type='train', reshape_size=(256, 256))
+    x_val, y_val_det, y_val_cls = load_data(data_dir, type='validation', reshape_size=(256, 256))
 
     train_count = len(x_train)
     val_count = len(x_val)
-    val_steps = int(val_count / BATCH_SIZE)
+    train_steps = int(train_count / batch_size)
+    val_steps = int(val_count / batch_size)
     print('training imgs:', train_count)
     print('val imgs:', val_count)
-
+    print('x_train: {}, y_train_det: {}, y_train_cls: {}'.format(x_train.shape, y_train_det.shape, y_train_cls.shape))
     trainset = np.concatenate([x_train, y_train_det, y_train_cls], axis=1)
     trainset = torch.Tensor(trainset)
 
     valset = np.concatenate([x_val, y_val_det, y_val_cls], axis=1)
     valset = torch.Tensor(valset)
 
-    trainset = trainset.cuda()
-    valset = valset.cuda()
-
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(valset, batch_size=BATCH_SIZE, shuffle=True)
-
-    return train_loader, val_loader
+    return trainset, valset, train_steps, val_steps
 
 
 def tune_weights(weight_det=None, weight_cls=None):
@@ -53,14 +48,37 @@ def tune_weights(weight_det=None, weight_cls=None):
         weight_cls = torch.Tensor([1, 1, 1, 1, 1])
     else:
         weight_cls = torch.Tensor(weight_cls)
-    weight_det = weight_det.cuda()
-    weight_cls = weight_cls.cuda()
+   # weight_det = weight_det.cuda()
+    #weight_cls = weight_cls.cuda()
     return weight_det, weight_cls
+
+
+def data_unpack(datapack):
+    #datapack.cuda()
+    train_imgs = datapack[:, 0:3]
+    train_det_masks = datapack[:, 3:4]
+    train_cls_masks = datapack[:, 4:]
+    print(train_imgs.shape, train_det_masks.shape, train_cls_masks.shape)
+    train_det_masks = train_det_masks.long()
+    train_cls_masks = train_cls_masks.long()
+
+    train_det_masks = train_det_masks.view(
+        train_det_masks.size()[0],
+        train_det_masks.size()[2],
+        train_det_masks.size()[3]
+    )
+
+    train_cls_masks = train_cls_masks.view(
+        train_cls_masks.size()[0],
+        train_cls_masks.size()[2],
+        train_cls_masks.size()[3]
+    )
+    return train_imgs, train_det_masks, train_cls_masks
 
 
 def train(model, weight_det=None, weight_cls=None,data_dir='',
           preprocess=True, gpu=True, num_epochs=Config.epoch, target_size=256):
-
+    model.train()
     weight_det, weight_cls = tune_weights(weight_det, weight_cls)
     writer = SummaryWriter()
 
@@ -98,24 +116,7 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
         train_loss = 0.0
         val_loss = 0.0
         for i, datapack in enumerate(train_loader, 0):
-            train_imgs = datapack[:, 0:3]
-            train_det_masks = datapack[:, 3:4]
-            train_cls_masks = datapack[:, 4:]
-
-            train_det_masks = train_det_masks.long()
-            train_cls_masks = train_cls_masks.long()
-
-            train_det_masks = train_det_masks.view(
-                train_det_masks.size()[0],
-                train_det_masks.size()[2],
-                train_det_masks.size()[3]
-            )
-
-            train_cls_masks = train_cls_masks.view(
-                train_cls_masks.size()[0],
-                train_cls_masks.size()[2],
-                train_cls_masks.size()[3]
-            )
+            train_imgs, train_det_masks, train_cls_masks = data_unpack(datapack)
 
             optimizer.zero_grad()
             train_det_out, train_cls_out = model(train_imgs)
@@ -132,23 +133,7 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
                 train_loss = 0.0
 
         for i, datapack in enumerate(val_loader, 0):
-            val_imgs = datapack[:, 0:3]
-            val_det_masks = datapack[:, 3:4]
-            val_cls_masks = datapack[:, 4:]
-
-            val_det_masks = val_det_masks.long()
-            val_det_masks = val_det_masks.view(
-                val_det_masks.size()[0],
-                val_det_masks.size()[2],
-                val_det_masks.size()[3]
-            )
-
-            val_cls_masks = val_cls_masks.long()
-            val_cls_masks = val_cls_masks.view(
-                val_cls_masks.size()[0],
-                val_cls_masks.size()[2],
-                val_cls_masks.size()[3]
-            )
+            val_imgs, val_det_masks, val_cls_masks = data_unpack(datapack)
 
             # optimizer.zero_grad()
             val_det_out, val_cls_out = model(val_imgs)
@@ -161,19 +146,12 @@ def train(model, weight_det=None, weight_cls=None,data_dir='',
                 val_loss = val_loss / val_steps
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    torch.save(model.state_dict(), './ckpt/test_att_global.pkl')
+                    torch.save(model.state_dict(), os.path.join(CKPT_DIR, 'test_att_global.pkl'))
                 end = time.time()
                 time_spent = end - start
                 writer.add_scalar('val_loss', val_loss, epoch)
                 print('epoch: %3d, time: %.5f val_loss: %.5f' % (epoch + 1, time_spent, val_loss))
                 val_loss = 0.0
-                #p, r, f = MyMetrics(model)
-                #writer.add_scalar('precision', p, epoch)
-                #writer.add_scalar('recall', r, epoch)
-                #writer.add_scalar('f1_score', f, epoch)
-                #print('p:', p)
-                #print('r:', r)
-                #print('f:', f)
                 print('******************************************************************************')
 
     # writer.export_scalars_to_json('./loss.json')
